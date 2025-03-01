@@ -1,0 +1,220 @@
+#errorCatcher Echo
+#import dateutil.parser
+#set $issueDateTime = $aus.FC_DISTRICT.amoc.issue__time__local.string
+#set $FC_LOCAL = $aus.FC_LOCAL.forecast('area', description=str($aus.index_locality))
+#set $FC_DISTRICT = $aus.FC_DISTRICT.forecast.getNode('area', type="metropolitan")
+#if $FC_DISTRICT is None
+#set $FC_DISTRICT = $aus.FC_DISTRICT.forecast.getNode('area', type="public-district")
+#end if
+#if $FC_DISTRICT is None
+#set $FC_DISTRICT = $aus.FC_DISTRICT.forecast.getNode('area', type="location")
+#end if
+#if $aus.FC_DISTRICT.amoc.phase.string == "NEW"
+#set $fcIssueDistrict = "Issued "
+#else
+#set $fcIssueDistrict = "Updated "
+#end if
+<!DOCTYPE html>
+<html lang="$lang">
+#include "head.html.inc"
+<body>
+<!-- Menu navbar -->
+#include "nav.html.inc"
+<!-- Main container -->
+<div class="$global_main_container_classes">
+    <div class="row">
+        <!-- Gauge panel -->
+        #include "livegauges.html.inc"
+        <!-- Main panel -->
+        <div id="${global_main_panel_id}" class="$global_main_panel_classes">
+            <div class="row g-3">
+                <div class="col-xl-7 col-xxl-6">
+                    <div class="card mt-3 mb-xl-3">
+                        <div class="card-header d-flex">
+                            <div class="col">$FC_LOCAL.description forecast</div>
+                            <div class="col d-flex justify-content-end d-sm-none">
+                                <div class="form-check form-switch">
+                                <label class="form-check-label fw-light" for="switch-fc-detail">
+                                <smalll>Show detail</smalll></label>
+                                <input class="form-check-input" type="checkbox" role="switch" id="switch-fc-detail">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                        <p class="card-text fw-lighter lh-1 pb-3 mb-1 border-bottom border-2">
+                            <small>
+                            Forecast for $FC_LOCAL.description and $FC_DISTRICT.description area. <br />$fcIssueDistrict at $dateutil.parser.parse($issueDateTime).strftime("%I:%M%p") $aus.FC_DISTRICT.amoc.issue__time__local.tz on $dateutil.parser.parse($issueDateTime).strftime("%a %-d %b %Y")
+                            </small>
+                        </p>
+                        #for $fcCount in range(8)
+                        #set $fcIndex = str($fcCount)
+                        #if $FC_LOCAL.getNode('forecast-period', index=$fcIndex) is not None
+                        <div class="row">
+                            <div class="col-xs-12">
+                            #set $specialEmoji = ""
+                            #if $dateutil.parser.parse($FC_LOCAL.getNode('forecast-period', index=$fcIndex).start__time__local).date() == $dateutil.parser.parse('2024.12.25').date()
+                            #set $specialEmoji = "🎄"
+                            #end if
+                            #if $fcIndex == "0"
+                            <div class="pb-1 pt-1 border-bottom text-primary">
+                                Forecast for rest of $dateutil.parser.parse($FC_LOCAL.getNode('forecast-period', index=$fcIndex).start__time__local).strftime("%A") $specialEmoji
+                            </div>
+                            #else
+                            <div class="pb-1 pt-1 border-top border-bottom text-primary">
+                                $dateutil.parser.parse($FC_LOCAL.getNode('forecast-period', index=$fcIndex).start__time__local).strftime("%A %-d %b") $specialEmoji
+                            </div>
+                            #end if
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                            <div class="row pt-1 pb-1">
+                                <div class="col-3">
+                                    <img src="$aus.icons[$FC_LOCAL.getNode('forecast-period',index=$fcIndex).getNode('element',type="forecast_icon_code").string]" />
+                                </div>
+                                <div class="col-9">
+                                    #if $FC_LOCAL.getNode('forecast-period',index=$fcIndex).getNode('element',type="air_temperature_minimum") is not None
+                                    <small>Min</small> <strong><span style="color: blue">$FC_LOCAL.getNode('forecast-period',index=$fcIndex).getNode('element',type="air_temperature_minimum")</span></strong>
+                                    #end if
+                                    #if $FC_LOCAL.getNode('forecast-period',index=$fcIndex).getNode('element',type="air_temperature_maximum") is not None
+                                    <small>Max</small> <strong><span style="color: red">$FC_LOCAL.getNode('forecast-period',index=$fcIndex).getNode('element',type="air_temperature_maximum")</span></strong><br />
+                                    #end if
+                                    <div class="pb-1"><strong>$FC_LOCAL.getNode('forecast-period',index=$fcIndex).text</strong></div>
+                                    #if $FC_LOCAL.getNode('forecast-period', index=$fcIndex).getNode('text',type="probability_of_precipitation") is not None
+                                    <div class="border-top fw-light d-none fc-detail" style="border-top-style: dotted !important;">
+                                    <small>Chance of any rain: </small><span style="color: green"><strong>$FC_LOCAL.getNode('forecast-period', index=$fcIndex).getNode('text',type="probability_of_precipitation").string</strong></span>
+                                    <img style="vertical-align: baseline;" src="$aus.rainImgs[$FC_LOCAL.getNode('forecast-period', index=$fcIndex).getNode('text',type="probability_of_precipitation").string]" />
+                                    </div>
+                                    #if $FC_LOCAL.getNode('forecast-period', index=$fcIndex).getNode('element',type="precipitation_range") is not None
+                                    <div class="border-top fw-light d-none fc-detail" style="border-top-style: dotted !important;">
+                                    <small>Rainfall amount: </small><span style="color: green"><strong>$FC_LOCAL.getNode('forecast-period', index=$fcIndex).getNode('element',type="precipitation_range").string</strong></span>
+                                    </div>
+                                    #end if
+                                    #end if
+                                </div>
+                            </div>
+                            </div>
+                            <div class="col-md-12 col-xxl-6 d-none fc-detail">
+                            <div class="row pt-1 pb-1">
+                                <div class="col-xs-12">
+                                    #if $FC_DISTRICT.getNode('forecast-period', index=$fcIndex) is not None
+                                    <div class="d-block d-xxl-none border-top pb-1"></div>
+                                    <strong>$FC_DISTRICT.description area</strong><br />
+                                    <span class="fw-light">$FC_DISTRICT.getNode('forecast-period', index=$fcIndex).getNode('text',type="forecast").string</span>
+                                    #end if
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                        #end if
+                        #end for
+                        <div class="border-top pt-3">
+                            <p class="card-text fw-lighter lh-1">
+                            <small>
+                            #set $nextIssueDateTime = $aus.FC_LOCAL.amoc.next__routine__issue__time__local.string
+                            The next routine forecast will be issued at $dateutil.parser.parse($nextIssueDateTime).strftime("%I:%M%p") $aus.FC_LOCAL.amoc.next__routine__issue__time__local.tz $dateutil.parser.parse($nextIssueDateTime).strftime("%A")
+                            </small>
+                            </p>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-5 col-xxl-4">
+                    <div class="card mt-xl-3 mb-3 sticky-lg-top" style="z-index: 1010;">
+                        <div class="card-header">
+                            $FC_DISTRICT.description area forecast
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text fw-lighter lh-1 pb-3 mb-1 border-bottom border-2">
+                                <small>
+                                #set $issueDateTime = $aus.FC_DISTRICT.amoc.issue__time__local.string
+                                Forecast for $FC_DISTRICT.description area<br />
+                                $fcIssueDistrict at $dateutil.parser.parse($issueDateTime).strftime("%I:%M%p") $aus.FC_DISTRICT.amoc.issue__time__local.tz on $dateutil.parser.parse($issueDateTime).strftime("%a %-d %b %Y")
+                                </small>
+                            </p>
+                            <table class="table table-sm">
+                                <tbody>
+                                <tr>
+                                    <td class="text-primary" colspan="4">
+                                    ## Simulate what BOM does. In the evening they default to showing next day
+                                    ## We can detect this when the "0" index of the first location does not exist or has no maximum air temperature
+                                    #if $aus.FC_DISTRICT.forecast.getNode('area', type="location").getNode('forecast-period', index="0") is not None 
+                                        #if $aus.FC_DISTRICT.forecast.getNode('area', type="location").getNode('forecast-period', index="0").getNode('element',type="air_temperature_maximum") is not None
+                                        #set $fcIndex = "0"
+                                        #else
+                                        #set $fcIndex = "1"
+                                        #end if
+                                    #else
+                                        #set $fcIndex = "1"
+                                    #end if
+                                    #if $fcIndex == "0" 
+                                    Forecast for rest of $dateutil.parser.parse($FC_DISTRICT.getNode('forecast-period', index=$fcIndex).start__time__local).strftime("%A")
+                                    #else
+                                    Forecast for $dateutil.parser.parse($FC_DISTRICT.getNode('forecast-period', index=$fcIndex).start__time__local).strftime("%A")
+                                    #end if
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td><strong>Location</strong></td>
+                                    <td><strong>Min</strong></td>
+                                    <td><strong>Max</strong></td>
+                                </tr>    
+                                #for $FC_LOCATION in $aus.FC_DISTRICT.forecast.getNodes('area')  
+                                #if $FC_LOCATION.type == "location"
+                                <tr>
+                                    <td>
+                                    ## Forecast icons come from locality file and not the district file even though BOM does not suggest so                      
+                                    <img src="$aus.iconsSml[$aus.FC_LOCAL.forecast('area', description=str($FC_LOCATION.description)).getNode('forecast-period',index=$fcIndex).getNode('element',type="forecast_icon_code").string]" />
+                                    </td>
+                                    <td><span class="fw-light">
+                                    $FC_LOCATION.description
+                                    </span></td>
+                                    <td>
+                                    #if $fcIndex == "0"
+                                    -
+                                    #else
+                                    <strong><span style="color: blue">$FC_LOCATION.getNode('forecast-period', index=$fcIndex).getNode('element',type="air_temperature_minimum")</span></strong>
+                                    #end if
+                                    </td>
+                                    <td>
+                                    <strong><span style="color: red">$FC_LOCATION.getNode('forecast-period', index=$fcIndex).getNode('element',type="air_temperature_maximum")</span></strong>
+                                    </td>
+                                </tr>
+                                #end if
+                                #end for
+                                </tbody>
+                            </table>
+                            <p class="card-text fw-lighter lh-1">
+                                <small>
+                                #set $nextIssueDateTime = $aus.FC_DISTRICT.amoc.next__routine__issue__time__local.string
+                                The next routine forecast will be issued at $dateutil.parser.parse($nextIssueDateTime).strftime("%I:%M%p") $aus.FC_DISTRICT.amoc.next__routine__issue__time__local.tz $dateutil.parser.parse($nextIssueDateTime).strftime("%A")
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+            </div>
+        </div>
+    </div>
+    #include "foot.html.inc"
+</div>
+#include "script.html.inc"
+#raw
+<script>
+$(function() {
+    if (window.matchMedia('(min-width: 576px)').matches) {
+        $('.fc-detail').removeClass("d-none");
+        $('#switch-fc-detail').prop("checked", true);
+    }
+});
+$('#switch-fc-detail').click(function(e){
+    if (e.target.checked) {
+        $('.fc-detail').removeClass("d-none");
+    } else {
+        $('.fc-detail').addClass("d-none");
+    }
+});
+</script>
+#end raw
+</body>
+</html>
